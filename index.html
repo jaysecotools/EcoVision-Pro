@@ -345,21 +345,6 @@
       transition: var(--transition);
     }
     
-.history-item > div:first-child {
-  flex: 1;
-  cursor: pointer;
-}
-
-.delete-assessment-btn {
-  opacity: 0.7;
-  transition: var(--transition);
-}
-
-.delete-assessment-btn:hover {
-  opacity: 1;
-  transform: scale(1.1);
-}
-    
     .history-item:hover {
       transform: translateX(5px);
       box-shadow: var(--shadow);
@@ -1729,92 +1714,56 @@
     }
 
     // Render assessment history
-function renderHistory() {
-  if (appState.previousAssessments.length === 0) {
-    elements.historyContainer.innerHTML = `
-      <div style="text-align: center; padding: 20px; color: var(--text-light);">
-        <i class="fas fa-history fa-2x" style="margin-bottom: 10px;"></i>
-        <p>No previous assessments found</p>
-      </div>
-    `;
-    return;
-  }
-  
-  // Sort by date (newest first)
-  const sortedAssessments = [...appState.previousAssessments].sort((a, b) => b.timestamp - a.timestamp);
-  
-  let html = sortedAssessments.map((assessment, index) => {
-    let scoreClass;
-    if (assessment.score < 40) {
-      scoreClass = 'score-low';
-    } else if (assessment.score < 70) {
-      scoreClass = 'score-medium';
-    } else {
-      scoreClass = 'score-high';
-    }
-    
-    // Check if this assessment has photos
-    const hasPhotos = assessment.photos && assessment.photos.length > 0;
-    
-    return `
-      <div class="history-item">
-        <div data-index="${index}">
-          <strong>${assessment.date}</strong>
-          <div class="small">${assessment.location || 'No location specified'}</div>
-          ${hasPhotos ? '<span class="badge"><i class="fas fa-camera"></i> Photos</span>' : ''}
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div class="history-score ${scoreClass}">${assessment.score}/100</div>
-          <button class="delete-assessment-btn" data-index="${index}" style="background: none; border: none; color: var(--danger); cursor: pointer;">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  elements.historyContainer.innerHTML = html;
-  
-  // Add click handlers to view historical assessments
-  document.querySelectorAll('.history-item > div:first-child').forEach(item => {
-    item.addEventListener('click', function() {
-      const index = parseInt(this.getAttribute('data-index'));
-      viewHistoricalAssessment(index);
-    });
-  });
-  
-  // Add click handlers to delete buttons
-  document.querySelectorAll('.delete-assessment-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation(); // Prevent triggering the history item click
-      const index = parseInt(this.getAttribute('data-index'));
-      deleteAssessment(index);
-    });
-  });
-}
-
-    // Delete an assessment from history
-function deleteAssessment(index) {
-  if (confirm('Are you sure you want to delete this assessment? This cannot be undone.')) {
-    // Remove the assessment from the array
-    appState.previousAssessments.splice(index, 1);
-    
-    // Update localStorage
-    localStorage.setItem('ecoAssessments', JSON.stringify(appState.previousAssessments));
-    
-    // Re-render history
-    renderHistory();
-    
-    // If we deleted the current assessment being viewed, reset the view
-    if (elements.resultContainer.classList.contains('active') {
-      const currentAssessment = appState.previousAssessments[appState.previousAssessments.length - 1];
-      if (!currentAssessment) {
-        resetAssessment();
+    function renderHistory() {
+      if (appState.previousAssessments.length === 0) {
+        elements.historyContainer.innerHTML = `
+          <div style="text-align: center; padding: 20px; color: var(--text-light);">
+            <i class="fas fa-history fa-2x" style="margin-bottom: 10px;"></i>
+            <p>No previous assessments found</p>
+          </div>
+        `;
+        return;
       }
+      
+      // Sort by date (newest first)
+      const sortedAssessments = [...appState.previousAssessments].sort((a, b) => b.timestamp - a.timestamp);
+      
+      let html = sortedAssessments.map((assessment, index) => {
+        let scoreClass;
+        if (assessment.score < 40) {
+          scoreClass = 'score-low';
+        } else if (assessment.score < 70) {
+          scoreClass = 'score-medium';
+        } else {
+          scoreClass = 'score-high';
+        }
+        
+        // Check if this assessment has photos
+        const hasPhotos = assessment.photos && assessment.photos.length > 0;
+        
+        return `
+          <div class="history-item" data-index="${index}">
+            <div>
+              <strong>${assessment.date}</strong>
+              <div class="small">${assessment.location || 'No location specified'}</div>
+              ${hasPhotos ? '<span class="badge"><i class="fas fa-camera"></i> Photos</span>' : ''}
+            </div>
+            <div class="history-score ${scoreClass}">${assessment.score}/100</div>
+          </div>
+        `;
+      }).join('');
+      
+      elements.historyContainer.innerHTML = html;
+      
+      // Add click handlers to view historical assessments
+      document.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          viewHistoricalAssessment(index);
+        });
+      });
     }
-  }
-}
-    
+
     // View historical assessment details
     function viewHistoricalAssessment(index) {
       const assessment = appState.previousAssessments[index];
