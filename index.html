@@ -557,6 +557,23 @@
       opacity: 1;
     }
     
+.delete-assessment-btn {
+  transition: var(--transition);
+  opacity: 0.7;
+  padding: 5px;
+  border-radius: 50%;
+}
+
+.delete-assessment-btn:hover {
+  opacity: 1;
+  background-color: rgba(211, 47, 47, 0.1);
+  transform: scale(1.1);
+}
+
+.history-item:hover .delete-assessment-btn {
+  display: block;
+}
+
     /* Photo upload styles */
     .photo-upload-container {
       margin: 20px 0;
@@ -1740,116 +1757,169 @@
       });
     }
 
-    // Save current assessment
-    function saveAssessment(score, categoryScores) {
-      const assessment = {
-        date: new Date().toLocaleDateString(),
-        score: score,
-        categoryScores: categoryScores,
-        answers: appState.currentAnswers,
-        timestamp: new Date().getTime()
-      };
-      
-      appState.previousAssessments.push(assessment);
-      localStorage.setItem('ecoAssessments', JSON.stringify(appState.previousAssessments));
-      
-      // Update history display
-      renderHistory();
-    }
+// Save current assessment
+function saveAssessment(score, categoryScores) {
+  const assessment = {
+    date: new Date().toLocaleDateString(),
+    score: score,
+    categoryScores: categoryScores,
+    answers: appState.currentAnswers,
+    timestamp: new Date().getTime()
+  };
+  
+  appState.previousAssessments.push(assessment);
+  localStorage.setItem('ecoAssessments', JSON.stringify(appState.previousAssessments));
+  
+  // Update history display
+  renderHistory();
+}
 
-    // Render assessment history
-    function renderHistory() {
-      if (appState.previousAssessments.length === 0) {
-        elements.historyContainer.innerHTML = `
-          <div style="text-align: center; padding: 20px; color: var(--text-light);">
-            <i class="fas fa-history fa-2x" style="margin-bottom: 10px;"></i>
-            <p>No previous assessments found</p>
-          </div>
-        `;
-        return;
-      }
-      
-      // Sort by date (newest first)
-      const sortedAssessments = [...appState.previousAssessments].sort((a, b) => b.timestamp - a.timestamp);
-      
-      let html = sortedAssessments.map((assessment, index) => {
-        let scoreClass;
-        if (assessment.score < 40) {
-          scoreClass = 'score-low';
-        } else if (assessment.score < 70) {
-          scoreClass = 'score-medium';
-        } else {
-          scoreClass = 'score-high';
-        }
-        
-        // Check if this assessment has photos
-        const hasPhotos = assessment.photos && assessment.photos.length > 0;
-        
-        return `
-          <div class="history-item" data-index="${index}">
-            <div>
-              <strong>${assessment.date}</strong>
-              <div class="small">${assessment.location || 'No location specified'}</div>
-              ${hasPhotos ? '<span class="badge"><i class="fas fa-camera"></i> Photos</span>' : ''}
-            </div>
-            <div class="history-score ${scoreClass}">${assessment.score}/100</div>
-          </div>
-        `;
-      }).join('');
-      
-      elements.historyContainer.innerHTML = html;
-      
-      // Add click handlers to view historical assessments
-      document.querySelectorAll('.history-item').forEach(item => {
-        item.addEventListener('click', function() {
-          const index = parseInt(this.getAttribute('data-index'));
-          viewHistoricalAssessment(index);
-        });
-      });
+// Render assessment history
+function renderHistory() {
+  if (appState.previousAssessments.length === 0) {
+    elements.historyContainer.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: var(--text-light);">
+        <i class="fas fa-history fa-2x" style="margin-bottom: 10px;"></i>
+        <p>No previous assessments found</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Create array with original indices before sorting
+  const assessmentsWithIndices = appState.previousAssessments.map((assessment, index) => ({
+    ...assessment,
+    originalIndex: index
+  }));
+  
+  // Sort by date (newest first)
+  const sortedAssessments = [...assessmentsWithIndices].sort((a, b) => b.timestamp - a.timestamp);
+  
+  let html = sortedAssessments.map((assessment) => {
+    let scoreClass;
+    if (assessment.score < 40) {
+      scoreClass = 'score-low';
+    } else if (assessment.score < 70) {
+      scoreClass = 'score-medium';
+    } else {
+      scoreClass = 'score-high';
     }
+    
+    // Check if this assessment has photos
+    const hasPhotos = assessment.photos && assessment.photos.length > 0;
+    
+    return `
+      <div class="history-item" data-index="${assessment.originalIndex}">
+        <div>
+          <strong>${assessment.date}</strong>
+          <div class="small">${assessment.location || 'No location specified'}</div>
+          ${hasPhotos ? '<span class="badge"><i class="fas fa-camera"></i> Photos</span>' : ''}
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="history-score ${scoreClass}">${assessment.score}/100</div>
+          <button class="delete-assessment-btn" data-index="${assessment.originalIndex}" style="background: none; border: none; color: var(--danger); cursor: pointer;">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  elements.historyContainer.innerHTML = html;
+  
+  // Add click handlers to view historical assessments
+  document.querySelectorAll('.history-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      // Don't trigger if clicking on delete button
+      if (!e.target.closest('.delete-assessment-btn')) {
+        const index = parseInt(this.getAttribute('data-index'));
+        viewHistoricalAssessment(index);
+      }
+    });
+  });
+  
+  // Add click handlers to delete buttons
+  document.querySelectorAll('.delete-assessment-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const index = parseInt(this.getAttribute('data-index'));
+      deleteAssessment(index);
+    });
+  });
+}
 
-    // View historical assessment details
-    function viewHistoricalAssessment(index) {
-      const assessment = appState.previousAssessments[index];
-      
-      // Display the assessment
-      elements.scoreDisplay.textContent = assessment.score;
-      
-      let scoreClass;
-      if (assessment.score < 40) {
-        scoreClass = 'score-low';
-      } else if (assessment.score < 70) {
-        scoreClass = 'score-medium';
-      } else {
-        scoreClass = 'score-high';
+function deleteAssessment(index) {
+  if (confirm('Are you sure you want to delete this assessment? This cannot be undone.')) {
+    // Remove the assessment from the array
+    appState.previousAssessments.splice(index, 1);
+    
+    // Update localStorage
+    localStorage.setItem('ecoAssessments', JSON.stringify(appState.previousAssessments));
+    
+    // Re-render history
+    renderHistory();
+    
+    // If we deleted the last assessment, reset the trend chart
+    if (appState.previousAssessments.length === 0) {
+      if (appState.charts.trend) {
+        appState.charts.trend.destroy();
+        document.getElementById('trend-chart-container').innerHTML = '<canvas id="trend-chart"></canvas>';
       }
-      
-      elements.scoreDisplay.className = `score-display ${scoreClass}`;
-      elements.scoreDescription.textContent = 
-        assessment.score < 40 ? ecoData.scoreDescriptions.low :
-        assessment.score < 70 ? ecoData.scoreDescriptions.medium :
-        ecoData.scoreDescriptions.high;
-      
-      // Update location if exists
-      if (assessment.location) {
-        elements.locationInput.value = assessment.location;
-        geocodeLocation(assessment.location);
-      } else {
-        elements.locationInput.value = '';
-        elements.mapPlaceholder.classList.remove('hidden');
-      }
-      
-      // Create radar chart for historical data
-      createRadarChart(assessment.categoryScores);
-      
-      // Switch to summary tab
-      switchTab({ target: document.querySelector('.tab[data-tab="summary"]') });
-      
-      // Scroll to top
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Otherwise update the trend chart
+      createTrendChart();
     }
+    
+    // Show confirmation
+    alert('Assessment deleted successfully');
+  }
+}
 
-    // Save biodiversity survey
+// View historical assessment details
+function viewHistoricalAssessment(index) {
+  const assessment = appState.previousAssessments[index];
+  
+  if (!assessment) {
+    console.error('Assessment not found at index:', index);
+    return;
+  }
+  
+  // Display the assessment
+  elements.scoreDisplay.textContent = assessment.score;
+  
+  let scoreClass;
+  if (assessment.score < 40) {
+    scoreClass = 'score-low';
+  } else if (assessment.score < 70) {
+    scoreClass = 'score-medium';
+  } else {
+    scoreClass = 'score-high';
+  }
+  
+  elements.scoreDisplay.className = `score-display ${scoreClass}`;
+  elements.scoreDescription.textContent = 
+    assessment.score < 40 ? ecoData.scoreDescriptions.low :
+    assessment.score < 70 ? ecoData.scoreDescriptions.medium :
+    ecoData.scoreDescriptions.high;
+  
+  // Update location if exists
+  if (assessment.location) {
+    elements.locationInput.value = assessment.location;
+    geocodeLocation(assessment.location);
+  } else {
+    elements.locationInput.value = '';
+    elements.mapPlaceholder.classList.remove('hidden');
+  }
+  
+  // Create radar chart for historical data
+  createRadarChart(assessment.categoryScores);
+  
+  // Switch to summary tab
+  switchTab({ target: document.querySelector('.tab[data-tab="summary"]') });
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}    // Save biodiversity survey
     function saveSurvey() {
       const survey = {
         date: document.getElementById('survey-date').value || new Date().toISOString().split('T')[0],
